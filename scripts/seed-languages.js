@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 /**
- * scripts/seed-languages.js — Populates the 10-language portfolio
- * Run: npm run db:seed
+ * scripts/seed-languages.js — Populates 10 languages + landmarks (PostgreSQL)
+ * 
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  WHAT CHANGED FROM SQLite:                                   ║
+ * ║                                                              ║
+ * ║  Placeholders: ? → $1, $2, $3...                             ║
+ * ║  INSERT OR IGNORE → INSERT ... ON CONFLICT DO NOTHING        ║
+ * ║  All queries are now async (await)                           ║
+ * ║  RETURNING id to get inserted row's ID                       ║
+ * ╚══════════════════════════════════════════════════════════════╝
  */
 
-const { getDb, saveDb, queryAll, queryOne, run, transaction, closeDb } = require('../lib/db');
+const { pool, queryOne, queryAll, transaction, closePool } = require('../lib/db');
 
 const languages = [
   { code:'de', name:'German', name_native:'Deutsch', flag:'🇩🇪', color:'#FFD700', script:'latin',
@@ -57,61 +65,65 @@ const greekLandmarks = [
 
 async function main() {
   console.log('🌍 Seeding 10 languages...\n');
-  const db = await getDb();
 
-  transaction(db, () => {
+  // Insert languages (ON CONFLICT DO NOTHING = safe to re-run)
+  await transaction(async (client) => {
     for (const lang of languages) {
-      db.run(
-        `INSERT OR IGNORE INTO languages 
+      await client.query(`
+        INSERT INTO languages
           (code,name,name_native,flag,color,script,palace_route,palace_landmark_count,
            status,sprint_order,assessed_level,current_phase,background_notes)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [lang.code, lang.name, lang.name_native, lang.flag, lang.color, lang.script,
-         lang.palace_route, lang.palace_landmark_count, lang.status, lang.sprint_order,
-         lang.assessed_level, lang.current_phase, lang.background_notes]
-      );
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+        ON CONFLICT (code) DO NOTHING
+      `, [lang.code, lang.name, lang.name_native, lang.flag, lang.color, lang.script,
+          lang.palace_route, lang.palace_landmark_count, lang.status, lang.sprint_order,
+          lang.assessed_level, lang.current_phase, lang.background_notes]);
     }
   });
 
-  // Seed German landmarks (52 placeholders)
-  const de = queryOne(db, 'SELECT id FROM languages WHERE code = ?', ['de']);
-  const deLandmarks = queryOne(db, 'SELECT COUNT(*) as c FROM landmarks WHERE language_id = ?', [de.id]);
-  if (de && deLandmarks.c === 0) {
+  // German landmarks (52 placeholders)
+  const de = await queryOne('SELECT id FROM languages WHERE code = $1', ['de']);
+  const deLm = await queryOne('SELECT COUNT(*)::int as c FROM landmarks WHERE language_id = $1', [de.id]);
+  if (de && deLm.c === 0) {
     console.log('   📍 Seeding German landmark placeholders (52)...');
-    transaction(db, () => {
+    await transaction(async (client) => {
       for (let i = 1; i <= 52; i++) {
-        db.run('INSERT INTO landmarks (language_id, position, name) VALUES (?,?,?)',
-          [de.id, i, `Landmark ${i} (update with real name)`]);
+        await client.query(
+          'INSERT INTO landmarks (language_id, position, name) VALUES ($1, $2, $3)',
+          [de.id, i, `Landmark ${i} (update with real name)`]
+        );
       }
     });
   }
 
-  // Seed Greek landmarks (37 Nice/Vauban route)
-  const el = queryOne(db, 'SELECT id FROM languages WHERE code = ?', ['el']);
-  const elLandmarks = queryOne(db, 'SELECT COUNT(*) as c FROM landmarks WHERE language_id = ?', [el.id]);
-  if (el && elLandmarks.c === 0) {
+  // Greek landmarks (37 Nice/Vauban)
+  const el = await queryOne('SELECT id FROM languages WHERE code = $1', ['el']);
+  const elLm = await queryOne('SELECT COUNT(*)::int as c FROM landmarks WHERE language_id = $1', [el.id]);
+  if (el && elLm.c === 0) {
     console.log('   📍 Seeding Greek landmarks (37 Nice/Vauban)...');
-    transaction(db, () => {
-      greekLandmarks.forEach((name, i) => {
-        db.run('INSERT INTO landmarks (language_id, position, name) VALUES (?,?,?)',
-          [el.id, i + 1, name]);
-      });
+    await transaction(async (client) => {
+      for (let i = 0; i < greekLandmarks.length; i++) {
+        await client.query(
+          'INSERT INTO landmarks (language_id, position, name) VALUES ($1, $2, $3)',
+          [el.id, i + 1, greekLandmarks[i]]
+        );
+      }
     });
   }
 
-  saveDb();
-
   // Verify
-  const count = queryOne(db, 'SELECT COUNT(*) as c FROM languages');
-  const lmCount = queryOne(db, 'SELECT COUNT(*) as c FROM landmarks');
+  const count = await queryOne('SELECT COUNT(*)::int as c FROM languages');
+  const lmCount = await queryOne('SELECT COUNT(*)::int as c FROM landmarks');
   console.log(`\n✅ Languages: ${count.c}`);
   console.log(`✅ Landmarks: ${lmCount.c}`);
 
-  const allLangs = queryAll(db, 'SELECT flag,name,code,status,assessed_level,sprint_order FROM languages ORDER BY sprint_order');
+  const allLangs = await queryAll(
+    'SELECT flag,name,code,status,assessed_level,sprint_order FROM languages ORDER BY sprint_order'
+  );
   allLangs.forEach(l => console.log(`   ${l.flag} ${l.name} (${l.code}) — ${l.status} — ${l.assessed_level} — Sprint #${l.sprint_order}`));
 
-  closeDb();
+  await closePool();
   console.log('\n🎉 Seeding complete! Next: npm run db:import-exercises');
 }
 
-main().catch(e => { console.error('❌ Seed failed:', e); process.exit(1); });
+main().catch(e => { console.error('❌ Seed failed:', e.message); process.exit(1); });
