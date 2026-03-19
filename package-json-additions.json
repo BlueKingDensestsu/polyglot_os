@@ -1,0 +1,16 @@
+{
+  "scripts_to_add_to_package_json": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "db:setup": "node scripts/setup-db.js",
+    "db:seed": "node scripts/seed-languages.js",
+    "db:import-exercises": "node scripts/import-exercises.js",
+    "db:reset": "rm -f data/polyglot.db && npm run db:setup && npm run db:seed",
+    "db:verify": "node -e \"const D=require('better-sqlite3');const db=new D('data/polyglot.db');console.log('Languages:',db.prepare('SELECT COUNT(*) as c FROM languages').get().c);console.log('Chapters:',db.prepare('SELECT COUNT(*) as c FROM grammar_chapters').get().c);console.log('Exercises:',db.prepare('SELECT COUNT(*) as c FROM grammar_exercises').get().c);console.log('Prompts:',db.prepare('SELECT COUNT(*) as c FROM grammar_prompts').get().c);console.log('Answers:',db.prepare('SELECT COUNT(*) as c FROM grammar_answers').get().c);console.log('Sessions:',db.prepare('SELECT COUNT(*) as c FROM sessions').get().c);db.close()\""
+  },
+  "dependencies_to_add": {
+    "sql.js": "^1.11.0"
+  },
+  "note": "Merge these into your existing package.json — don't replace it. Just add these scripts and run: npm install sql.js"
+}

@@ -1,0 +1,2 @@
+# This directory contains polyglot.db (created by npm run db:setup)
+# The .db file is gitignored — regenerate with: npm run db:reset
