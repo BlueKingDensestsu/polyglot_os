@@ -1,128 +1,179 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { getTheme } from '../../lib/themes';
-import { loadJSON } from '../../lib/storage';
 
-export default function GrammarChapterList() {
-  const searchParams = useSearchParams();
-  const lang = searchParams.get('lang') || 'de';
-  const theme = getTheme(lang, 'grammar');
-  
-  const [data, setData] = useState(null);
-  const [answers, setAnswers] = useState({});
-  const [flags, setFlags] = useState({});
+/**
+ * /grammar — Shows all grammar chapters for the active language
+ * 
+ * Each chapter card shows:
+ * - Chapter number + title
+ * - Exercise count and prompt count
+ * - Progress bar (answered / total prompts)
+ * - Color badge based on completion
+ */
+
+const TYPE_COLORS = {
+  transform: '#2EC4B6',
+  translate: '#E07A5F',
+  error_fix: '#F2CC8F',
+  produce: '#81B29A',
+  paragraph: '#3D405B',
+};
+
+export default function GrammarPage() {
+  const [chapters, setChapters] = useState([]);
+  const [language, setLanguage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // For now, hardcode 'de' as active language
+  // Layer 14 will add language switching
+  const langCode = 'de';
 
   useEffect(() => {
-    // Load exercises from JSON
-    fetch('/exercises_database.json')
-      .then(r => r.ok ? r.json() : Promise.reject('Not found'))
-      .then(d => setData(d))
-      .catch(() => setData(null));
-
-    setAnswers(loadJSON('grammar_answers', {}));
-    setFlags(loadJSON('grammar_flags', {}));
+    async function load() {
+      try {
+        const [chapRes, langRes] = await Promise.all([
+          fetch(`/api/chapters?lang=${langCode}`),
+          fetch(`/api/languages?code=${langCode}`)
+        ]);
+        const chapData = await chapRes.json();
+        const langData = await langRes.json();
+        setChapters(chapData);
+        setLanguage(langData);
+      } catch (e) {
+        setError(e.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
-  function getChapterProgress(chNum) {
-    const prefix = 'ch' + chNum + '_';
-    const answered = Object.keys(answers).filter(k => k.startsWith(prefix) && answers[k]?.trim()).length;
-    return answered;
-  }
+  if (loading) return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+      <p style={{ fontSize: 18, color: '#888' }}>Loading chapters...</p>
+    </div>
+  );
 
-  function getChapterTotal(chapter) {
-    return chapter.exercises.reduce((s, ex) => s + Math.max(ex.prompts?.length || 0, 1), 0);
-  }
+  if (error) return (
+    <div style={{ padding: 40, textAlign: 'center', color: '#E07A5F' }}>
+      <p style={{ fontSize: 18 }}>Error: {error}</p>
+      <p style={{ fontSize: 14, color: '#888', marginTop: 8 }}>Make sure PostgreSQL is running and exercises are imported.</p>
+    </div>
+  );
 
-  function getChapterFlagCount(chNum) {
-    const prefix = 'ch' + chNum + '_';
-    return Object.keys(flags).filter(k => k.startsWith(prefix) && flags[k]).length;
-  }
-
-  if (!data) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-4xl mb-4">📝</div>
-          <h2 className="text-xl font-bold mb-2">Loading exercises...</h2>
-          <p className="text-gray-400 text-sm">
-            Place exercises_database.json in the public/ folder
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const totalPrompts = chapters.reduce((sum, ch) => sum + (ch.prompt_count || 0), 0);
+  const totalAnswered = chapters.reduce((sum, ch) => sum + (ch.prompts_answered || 0), 0);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header — uses theme */}
-      <header className="text-white px-6 py-4 shadow-lg" style={{ background: theme.headerGradient }}>
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-white/70 hover:text-white text-sm font-bold">← Home</Link>
-            <div>
-              <h1 className="text-lg font-extrabold">{theme.name}</h1>
-              <p className="text-xs opacity-70">{data.chapters.length} chapters · {data.total_exercises} exercises</p>
-            </div>
-          </div>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 20px' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <span style={{ fontSize: 36 }}>{language?.flag}</span>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: '#1a1a2e', margin: 0 }}>
+            {language?.name} Grammar
+          </h1>
+          <span style={{
+            fontSize: 13, fontWeight: 700, padding: '4px 12px', borderRadius: 20,
+            background: '#E3F2FD', color: '#2E86AB'
+          }}>
+            {language?.assessed_level}
+          </span>
         </div>
-      </header>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 12 }}>
+          <span style={{ fontSize: 14, color: '#666' }}>
+            {chapters.length} chapters · {totalPrompts.toLocaleString()} prompts
+          </span>
+          <div style={{ flex: 1, maxWidth: 300, height: 8, background: '#eee', borderRadius: 4 }}>
+            <div style={{
+              height: '100%', borderRadius: 4, transition: 'width 0.5s',
+              width: totalPrompts > 0 ? `${(totalAnswered / totalPrompts) * 100}%` : '0%',
+              background: 'linear-gradient(90deg, #2EC4B6, #2E86AB)'
+            }} />
+          </div>
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#2E86AB' }}>
+            {totalAnswered}/{totalPrompts}
+          </span>
+        </div>
+      </div>
 
       {/* Chapter Grid */}
-      <main className="max-w-5xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {data.chapters.map((ch) => {
-            const answered = getChapterProgress(ch.chapter);
-            const total = getChapterTotal(ch);
-            const pct = total > 0 ? Math.round(answered / total * 100) : 0;
-            const flagCount = getChapterFlagCount(ch.chapter);
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+        gap: 16
+      }}>
+        {chapters.map(ch => {
+          const pct = ch.prompt_count > 0 ? (ch.prompts_answered || 0) / ch.prompt_count : 0;
+          const isDone = pct >= 1;
+          const hasProgress = pct > 0;
 
-            return (
-              <Link
-                key={ch.chapter}
-                href={'/grammar/' + lang + '/' + ch.chapter}
-                className="bg-white rounded-2xl p-5 shadow-sm border-2 border-gray-100 hover:border-teal-300 hover:shadow-md transition-all relative group"
+          return (
+            <Link
+              key={ch.id}
+              href={`/grammar/${langCode}/${ch.chapter_number}`}
+              style={{ textDecoration: 'none', color: 'inherit' }}
+            >
+              <div style={{
+                background: 'white',
+                borderRadius: 16,
+                padding: '20px 24px',
+                boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
+                border: isDone ? '2px solid #2EC4B6' : '2px solid transparent',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                position: 'relative',
+                overflow: 'hidden'
+              }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'; }}
               >
-                {flagCount > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                    {flagCount}
+                {/* Chapter number badge */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <span style={{
+                    fontSize: 12, fontWeight: 700, color: 'white', padding: '3px 10px',
+                    borderRadius: 12,
+                    background: isDone ? '#2EC4B6' : hasProgress ? '#2E86AB' : '#ccc'
+                  }}>
+                    Ch {ch.chapter_number}
                   </span>
-                )}
-                <div className="flex items-center gap-3 mb-3">
-                  <span 
-                    className="font-mono text-lg font-extrabold text-white w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: theme.primary }}
-                  >
-                    {ch.chapter}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-sm truncate">{ch.topic_de || ch.topic}</div>
-                    <div className="text-xs text-gray-400 truncate">{ch.topic}</div>
-                  </div>
+                  {isDone && <span style={{ fontSize: 18 }}>✅</span>}
+                  {ch.flagged_count > 0 && !isDone && (
+                    <span style={{ fontSize: 12, color: '#E07A5F' }}>
+                      ⚠️ {ch.flagged_count}
+                    </span>
+                  )}
                 </div>
+
+                {/* Title */}
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: '#1a1a2e', margin: '0 0 8px 0' }}>
+                  {ch.title}
+                </h3>
+
+                {/* Stats */}
+                <p style={{ fontSize: 13, color: '#888', margin: '0 0 12px 0' }}>
+                  {ch.exercise_count} exercises · {ch.prompt_count} prompts
+                </p>
+
                 {/* Progress bar */}
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ 
-                      width: pct + '%',
-                      background: pct >= 80 ? '#22c55e' : pct >= 40 ? '#f59e0b' : pct > 0 ? theme.primary : '#e2e8f0'
-                    }}
-                  />
+                <div style={{ height: 6, background: '#f0f0f0', borderRadius: 3 }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3, transition: 'width 0.4s',
+                    width: `${pct * 100}%`,
+                    background: isDone ? '#2EC4B6' : '#2E86AB'
+                  }} />
                 </div>
-                <div className="flex justify-between mt-2 text-[11px]">
-                  <span className="text-gray-400">{answered}/{total} prompts</span>
-                  <span className="font-bold" style={{ color: pct > 0 ? theme.primary : '#cbd5e1' }}>
-                    {pct}%
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      </main>
+                <p style={{ fontSize: 12, color: '#aaa', margin: '6px 0 0', textAlign: 'right' }}>
+                  {ch.prompts_answered || 0} / {ch.prompt_count}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,14 +1,53 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'Polyglot OS — Language Mastery System',
-  description: 'Sprint to C1 fluency in 10 languages with the Mental Palace + Grammar Trainer system',
+  title: 'Polyglot OS',
+  description: 'Serial sprints to C1. One language at a time.',
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body style={{ margin: 0, fontFamily: "'Nunito', sans-serif", background: '#f8f9fa', minHeight: '100vh' }}>
+        {/* Navbar */}
+        <nav style={{
+          background: 'white',
+          borderBottom: '1px solid #eee',
+          padding: '12px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <a href="/" style={{
+            textDecoration: 'none', color: '#1a1a2e',
+            fontSize: 18, fontWeight: 800, letterSpacing: -0.5
+          }}>
+            🌐 Polyglot OS
+          </a>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <a href="/grammar" style={{
+              textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600
+            }}>
+              📝 Grammar
+            </a>
+            <span style={{ color: '#ccc', fontSize: 14 }}>
+              🏛 Palace
+            </span>
+            <span style={{ color: '#ccc', fontSize: 14 }}>
+              📓 Journal
+            </span>
+          </div>
+        </nav>
+
+        {/* Page content */}
+        {children}
+      </body>
     </html>
   );
 }

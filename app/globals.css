@@ -2,18 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Reset */
 * {
   box-sizing: border-box;
 }
 
+/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
+/* Remove default input styling */
 input:focus {
   outline: none;
 }
 
+/* Scrollbar styling for export/import textareas */
+textarea::-webkit-scrollbar {
+  width: 6px;
+}
+textarea::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+/* Selection color matching brand */
 ::selection {
   background: #2EC4B6;
   color: white;
