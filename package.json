@@ -6,10 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:setup": "node scripts/setup-db.js",
+    "db:seed": "node scripts/seed-languages.js",
+    "db:import-exercises": "node scripts/import-exercises.js"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "next": "^16.2.0",
+    "pg": "^8.20.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },
