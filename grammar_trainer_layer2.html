@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Polyglot OS — Grammar Trainer (Layer 2)</title>
+<style>
+/* ══════════════════════════════════════════
+   POLYGLOT OS — GRAMMAR TRAINER LAYER 2
+   Features added over Layer 1:
+   ✅ Session timer (per chapter)
+   ✅ Autosave every 30 seconds
+   ✅ "Flag as difficult" per exercise
+   ✅ Improved export with gradient rubric
+   ✅ Stats bar (completed, flagged, time)
+   ✅ Ctrl/Cmd+Enter to export
+   ✅ Session history log
+   ══════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --muted: #64748b;
+  --blue: #0ea5e9;
+  --blue-light: #e0f2fe;
+  --teal: #14b8a6;
+  --teal-light: #ccfbf1;
+  --coral: #f43f5e;
+  --coral-light: #ffe4e6;
+  --amber: #f59e0b;
+  --amber-light: #fef3c7;
+  --violet: #8b5cf6;
+  --violet-light: #ede9fe;
+  --lime: #22c55e;
+  --lime-light: #dcfce7;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,.1);
+}
+
+body {
+  font-family: 'Nunito', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ─── HEADER ─── */
+.header {
+  background: linear-gradient(135deg, #0d9488 0%, #0ea5e9 100%);
+  color: white;
+  padding: 16px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1200px;
+  margin: 0 auto;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+}
+
+.header-subtitle {
+  font-size: 12px;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+/* ─── SESSION TIMER (LAYER 2 NEW) ─── */
+.session-timer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,.15);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.timer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #ff6b6b;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.timer-dot.paused { animation: none; opacity: 0.4; }
+
+/* ─── STATS BAR (LAYER 2 NEW) ─── */
+.stats-bar {
+  background: white;
+  border-bottom: 1px solid var(--gray-200);
+  padding: 10px 24px;
+  display: none;
+}
+
+.stats-bar.visible { display: block; }
+
+.stats-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  font-size: 13px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-value {
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--teal);
+}
+
+.stat-label { color: var(--muted); }
+
+.stat-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--gray-200);
+}
+
+/* ─── PROGRESS BAR ─── */
+.progress-bar-container {
+  flex: 1;
+  min-width: 120px;
+  max-width: 300px;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--gray-200);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--blue));
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+/* ─── NAVIGATION ─── */
+.nav-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 24px;
+}
+
+.nav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.nav-btn {
+  padding: 10px 12px;
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.nav-btn:hover {
+  border-color: var(--blue);
+  color: var(--blue);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+.nav-btn.active {
+  border-color: var(--teal);
+  background: var(--teal-light);
+  color: var(--teal);
+}
+
+.nav-btn.has-answers {
+  border-color: var(--lime);
+  background: var(--lime-light);
+}
+
+.nav-btn .ch-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+  display: block;
+}
+
+.nav-btn .ch-topic {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Flag indicator on nav button (Layer 2) */
+.nav-btn .flag-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--coral);
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ─── MAIN CONTENT ─── */
+.main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 100px;
+}
+
+/* ─── WELCOME SCREEN ─── */
+.welcome {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.welcome h2 {
+  font-size: 28px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.welcome p {
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+
+.welcome-stats {
+  display: flex;
+  justify-content: center;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.welcome-stat {
+  text-align: center;
+}
+
+.welcome-stat .val {
+  font-size: 32px;
+  font-weight: 800;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--teal);
+}
+
+.welcome-stat .lbl {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ─── EXERCISE CARDS ─── */
+.exercise-card {
+  background: white;
+  border-radius: var(--radius);
+  margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--gray-300);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.exercise-card.completed { border-left-color: var(--lime); }
+.exercise-card.flagged { border-left-color: var(--coral); }
+.exercise-card.flagged.completed { border-left-color: var(--amber); }
+
+.exercise-header {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  cursor: pointer;
+  gap: 10px;
+}
+
+.exercise-header:hover { background: var(--gray-100); }
+
+.exercise-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: var(--blue);
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.exercise-card.type-transform .exercise-num { background: var(--teal); }
+.exercise-card.type-error_fix .exercise-num { background: var(--coral); }
+.exercise-card.type-translate .exercise-num { background: var(--amber); }
+.exercise-card.type-produce .exercise-num { background: var(--violet); }
+.exercise-card.type-paragraph .exercise-num { background: var(--blue); }
+
+.exercise-info { flex: 1; min-width: 0; }
+
+.exercise-title {
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exercise-type {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+/* ─── FLAG BUTTON (LAYER 2 NEW) ─── */
+.flag-btn {
+  background: none;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.flag-btn:hover { border-color: var(--coral); background: var(--coral-light); }
+.flag-btn.flagged { border-color: var(--coral); background: var(--coral); color: white; }
+
+.arrow {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s;
+  flex-shrink: 0;
+  color: var(--muted);
+}
+
+.arrow.open { transform: rotate(90deg); }
+
+.exercise-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.exercise-body.open { max-height: 5000px; }
+
+.exercise-content {
+  padding: 0 18px 18px;
+}
+
+.instruction {
+  background: var(--amber-light);
+  border-left: 3px solid var(--amber);
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: #92400e;
+  margin-bottom: 14px;
+  font-style: italic;
+}
+
+/* ─── PROMPTS ─── */
+.prompt-item {
+  margin-bottom: 10px;
+}
+
+.prompt-text {
+  font-size: 13px;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+
+.prompt-text strong {
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--blue);
+}
+
+input.answer-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+input.answer-input:focus { border-color: var(--blue); }
+input.answer-input.has-text { border-color: var(--lime); background: var(--lime-light); }
+
+textarea.answer-input {
+  width: 100%;
+  min-height: 80px;
+  padding: 10px 14px;
+  border: 2px solid var(--gray-200);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+textarea.answer-input:focus { border-color: var(--blue); }
+textarea.answer-input.has-text { border-color: var(--lime); background: var(--lime-light); }
+
+/* ─── TOOLBAR ─── */
+.toolbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: white;
+  border-top: 1px solid var(--gray-200);
+  padding: 10px 24px;
+  z-index: 100;
+  display: none;
+}
+
+.toolbar.visible { display: block; }
+
+.toolbar-row {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.btn-primary { background: var(--teal); color: white; }
+.btn-primary:hover { background: #0d9488; }
+.btn-outline { background: white; border-color: var(--gray-200); color: var(--text); }
+.btn-outline:hover { border-color: var(--blue); color: var(--blue); }
+.btn-coral { background: var(--coral); color: white; }
+.btn-coral:hover { background: #e11d48; }
+.btn-lime { background: var(--lime); color: white; }
+.btn-lime:hover { background: #16a34a; }
+
+.toolbar-spacer { flex: 1; }
+
+.toolbar-hint {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 200;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 700px;
+  width: 100%;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+}
+
+.modal-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--gray-200);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.modal-body {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.modal-body pre {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.modal-footer {
+  padding: 14px 24px;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* ─── FILE PICKER ─── */
+.file-picker {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.file-picker h2 { margin-bottom: 12px; color: var(--blue); }
+
+.file-drop {
+  border: 3px dashed var(--gray-300);
+  border-radius: 16px;
+  padding: 40px;
+  cursor: pointer;
+  max-width: 400px;
+  margin: 20px auto;
+  transition: all 0.2s;
+}
+
+.file-drop:hover { border-color: var(--blue); background: var(--blue-light); }
+.file-drop input { display: none; }
+.file-drop .icon { font-size: 40px; margin-bottom: 8px; }
+.file-drop .label { font-weight: 700; font-size: 15px; }
+.file-drop .sub { color: var(--muted); font-size: 12px; margin-top: 4px; }
+
+/* ─── SESSION LOG (LAYER 2 NEW) ─── */
+.session-log {
+  margin-top: 24px;
+  background: white;
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+.session-log h3 { font-size: 14px; margin-bottom: 10px; }
+
+.session-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-100);
+  font-size: 12px;
+}
+
+.session-entry:last-child { border-bottom: none; }
+
+.session-date {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--muted);
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.session-chapter { font-weight: 700; width: 60px; flex-shrink: 0; }
+.session-duration { color: var(--teal); font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+.session-detail { color: var(--muted); flex: 1; }
+
+/* ─── AUTOSAVE INDICATOR (LAYER 2 NEW) ─── */
+.autosave-indicator {
+  position: fixed;
+  bottom: 60px;
+  right: 20px;
+  background: var(--lime);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 150;
+}
+
+.autosave-indicator.show { opacity: 1; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 640px) {
+  .header { padding: 12px 16px; }
+  .nav-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+  .main { padding: 0 12px 100px; }
+  .welcome-stats { flex-direction: column; gap: 16px; }
+  .stats-row { gap: 12px; }
+  .toolbar-row { flex-direction: column; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-row">
+    <div>
+      <div class="header-title">🧠 Polyglot OS — Grammar Trainer</div>
+      <div class="header-subtitle" id="header-sub">Select a chapter to begin</div>
+    </div>
+    <div class="session-timer" id="session-timer" style="display:none">
+      <div class="timer-dot" id="timer-dot"></div>
+      <span id="timer-display">00:00</span>
+    </div>
+  </div>
+</div>
+
+<!-- STATS BAR (Layer 2 new) -->
+<div class="stats-bar" id="stats-bar">
+  <div class="stats-row">
+    <div class="stat-item">
+      <span class="stat-value" id="stat-answered">0</span>
+      <span class="stat-label">answered</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-total">0</span>
+      <span class="stat-label">total</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" style="color:var(--coral)" id="stat-flagged">0</span>
+      <span class="stat-label">flagged</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat-item">
+      <span class="stat-value" id="stat-time">0:00</span>
+      <span class="stat-label">this session</span>
+    </div>
+    <div class="progress-bar-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CHAPTER NAVIGATION -->
+<div class="nav-container" id="nav-container">
+  <div class="nav-grid" id="chapter-nav"></div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main" id="main-content">
+  <div id="loading">
+    <div class="file-picker">
+      <h2>Loading exercises...</h2>
+    </div>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div class="toolbar" id="toolbar">
+  <div class="toolbar-row">
+    <button class="btn btn-outline" onclick="goHome()">← Chapters</button>
+    <button class="btn btn-outline" onclick="expandAll()">Expand All</button>
+    <button class="btn btn-outline" onclick="collapseAll()">Collapse All</button>
+    <span class="toolbar-spacer"></span>
+    <span class="toolbar-hint">Ctrl+Enter to export</span>
+    <button class="btn btn-lime" onclick="exportAnswers()">📋 Export for Correction</button>
+    <button class="btn btn-primary" onclick="saveProgress()">💾 Save</button>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-header" id="modal-title">Export</div>
+    <div class="modal-body">
+      <pre id="modal-content"></pre>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Close</button>
+      <button class="btn btn-primary" onclick="copyExport()">📋 Copy</button>
+      <button class="btn btn-lime" onclick="downloadExport()">⬇ Download .txt</button>
+    </div>
+  </div>
+</div>
+
+<!-- AUTOSAVE INDICATOR -->
+<div class="autosave-indicator" id="autosave-indicator">✓ Saved</div>
+
+<script>
+/* ══════════════════════════════════════════
+   STATE
+   ══════════════════════════════════════════ */
+
+let DATA = null;          // exercises database
+let ANSWERS = {};         // user answers: { "ch5_ex3_p2": "answer text" }
+let FLAGS = {};           // flagged exercises: { "ch5_ex3": true } (Layer 2)
+let CURRENT_CHAPTER = null;
+let SESSION_LOG = [];     // array of past sessions (Layer 2)
+
+// Session timer state (Layer 2)
+let sessionStartTime = null;
+let sessionTimerInterval = null;
+let sessionElapsedSeconds = 0;
+
+// Autosave interval (Layer 2)
+let autosaveInterval = null;
+
+/* ══════════════════════════════════════════
+   INITIALIZATION
+   ══════════════════════════════════════════ */
+
+async function init() {
+  // Try auto-loading JSON via fetch
+  try {
+    const resp = await fetch('exercises_database.json');
+    if (!resp.ok) throw new Error('Not found');
+    DATA = await resp.json();
+  } catch(e) {
+    try {
+      const resp = await fetch('exercises_compact.json');
+      if (!resp.ok) throw new Error('Not found');
+      DATA = await resp.json();
+    } catch(e2) {
+      // Show file picker (CORS fallback for file:// protocol)
+      showFilePicker();
+      return;
+    }
+  }
+  
+  loadState();
+  onDataReady();
+}
+
+function showFilePicker() {
+  document.getElementById('loading').innerHTML = `
+    <div class="file-picker">
+      <h2>Load your exercises</h2>
+      <p style="color:var(--muted)">Browsers block local files for security. Pick the JSON once — the app remembers.</p>
+      <div class="file-drop" onclick="this.querySelector('input').click()">
+        <input type="file" accept=".json" onchange="handleFilePick(this.files[0])">
+        <div class="icon">📂</div>
+        <div class="label">Click to select exercises_database.json</div>
+        <div class="sub">or exercises_compact.json</div>
+      </div>
+    </div>
+  `;
+}
+
+function handleFilePick(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      DATA = JSON.parse(e.target.result);
+      // Cache in localStorage so we don't ask again
+      try { localStorage.setItem('polyglot_exercises_cache', e.target.result); } catch(err) {}
+      loadState();
+      onDataReady();
+    } catch(err) {
+      alert('Invalid JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadState() {
+  try {
+    const savedAnswers = localStorage.getItem('polyglot_grammar_answers');
+    if (savedAnswers) ANSWERS = JSON.parse(savedAnswers);
+  } catch(e) {}
+  
+  try {
+    const savedFlags = localStorage.getItem('polyglot_grammar_flags');
+    if (savedFlags) FLAGS = JSON.parse(savedFlags);
+  } catch(e) {}
+  
+  try {
+    const savedLog = localStorage.getItem('polyglot_session_log');
+    if (savedLog) SESSION_LOG = JSON.parse(savedLog);
+  } catch(e) {}
+  
+  // Try loading cached exercises if DATA is null
+  if (!DATA) {
+    try {
+      const cached = localStorage.getItem('polyglot_exercises_cache');
+      if (cached) DATA = JSON.parse(cached);
+    } catch(e) {}
+  }
+}
+
+function onDataReady() {
+  renderNav();
+  showWelcome();
+  startAutosave(); // Layer 2
+}
+
+/* ══════════════════════════════════════════
+   AUTOSAVE (LAYER 2 NEW)
+   Every 30 seconds, persist to localStorage
+   ══════════════════════════════════════════ */
+
+function startAutosave() {
+  if (autosaveInterval) clearInterval(autosaveInterval);
+  autosaveInterval = setInterval(() => {
+    saveProgress(true); // true = silent (no visual feedback)
+  }, 30000);
+}
+
+function showAutosaveIndicator() {
+  const el = document.getElementById('autosave-indicator');
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 1500);
+}
+
+/* ══════════════════════════════════════════
+   SESSION TIMER (LAYER 2 NEW)
+   Starts when entering a chapter, pauses on home
+   ══════════════════════════════════════════ */
+
+function startSessionTimer() {
+  sessionStartTime = Date.now();
+  sessionElapsedSeconds = 0;
+  
+  document.getElementById('session-timer').style.display = 'flex';
+  document.getElementById('timer-dot').classList.remove('paused');
+  
+  if (sessionTimerInterval) clearInterval(sessionTimerInterval);
+  sessionTimerInterval = setInterval(() => {
+    sessionElapsedSeconds = Math.floor((Date.now() - sessionStartTime) / 1000);
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopSessionTimer() {
+  if (sessionTimerInterval) {
+    clearInterval(sessionTimerInterval);
+    sessionTimerInterval = null;
+  }
+  document.getElementById('timer-dot').classList.add('paused');
+}
+
+function updateTimerDisplay() {
+  const mins = Math.floor(sessionElapsedSeconds / 60);
+  const secs = sessionElapsedSeconds % 60;
+  document.getElementById('timer-display').textContent = 
+    `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  document.getElementById('stat-time').textContent = 
+    `${mins}:${String(secs).padStart(2,'0')}`;
+}
+
+function logSession(chapter) {
+  if (sessionElapsedSeconds < 10) return; // Don't log tiny sessions
+  
+  const chapter_data = DATA.chapters.find(c => c.chapter === chapter);
+  const prefix = `ch${chapter}_`;
+  const answered = Object.keys(ANSWERS).filter(k => k.startsWith(prefix) && ANSWERS[k]?.trim()).length;
+  const flagged = Object.keys(FLAGS).filter(k => k.startsWith(prefix) && FLAGS[k]).length;
+  
+  const entry = {
+    date: new Date().toISOString(),
+    chapter: chapter,
+    topic: chapter_data?.topic || '',
+    duration_seconds: sessionElapsedSeconds,
+    prompts_answered: answered,
+    exercises_flagged: flagged
+  };
+  
+  SESSION_LOG.push(entry);
+  try { localStorage.setItem('polyglot_session_log', JSON.stringify(SESSION_LOG)); } catch(e) {}
+}
+
+/* ══════════════════════════════════════════
+   NAVIGATION
+   ══════════════════════════════════════════ */
+
+function renderNav() {
+  const nav = document.getElementById('chapter-nav');
+  let html = '';
+  
+  DATA.chapters.forEach(ch => {
+    const hasAns = hasChapterAnswers(ch.chapter);
+    const flagCount = getChapterFlagCount(ch.chapter);
+    
+    html += `
+      <button class="nav-btn ${hasAns ? 'has-answers' : ''} ${CURRENT_CHAPTER === ch.chapter ? 'active' : ''}" 
+        id="nav-${ch.chapter}" onclick="openChapter(${ch.chapter})">
+        <span class="ch-num">${ch.chapter}</span>
+        <span class="ch-topic">${ch.topic_de || ch.topic}</span>
+        ${flagCount > 0 ? `<span class="flag-count">${flagCount}</span>` : ''}
+      </button>
+    `;
+  });
+  
+  nav.innerHTML = html;
+}
+
+/* ══════════════════════════════════════════
+   WELCOME / HOME SCREEN
+   ══════════════════════════════════════════ */
+
+function showWelcome() {
+  document.getElementById('toolbar').classList.remove('visible');
+  document.getElementById('stats-bar').classList.remove('visible');
+  document.getElementById('session-timer').style.display = 'none';
+  document.getElementById('header-sub').textContent = 'Select a chapter to begin';
+  
+  // Stop and log previous session if any
+  if (CURRENT_CHAPTER !== null && sessionStartTime) {
+    stopSessionTimer();
+    logSession(CURRENT_CHAPTER);
+  }
+  CURRENT_CHAPTER = null;
+  
+  // Calculate global stats
+  const totalAnswered = Object.keys(ANSWERS).filter(k => ANSWERS[k]?.trim()).length;
+  const totalPrompts = DATA.chapters.reduce((s, ch) => 
+    s + ch.exercises.reduce((s2, ex) => s2 + Math.max(ex.prompts.length, 1), 0), 0);
+  const totalFlagged = Object.keys(FLAGS).filter(k => FLAGS[k]).length;
+  const totalSessions = SESSION_LOG.length;
+  const totalMinutes = Math.round(SESSION_LOG.reduce((s, e) => s + e.duration_seconds, 0) / 60);
+  
+  let html = `
+    <div class="welcome">
+      <h2>Grammar Trainer</h2>
+      <p>${DATA.chapters.length} chapters · ${DATA.total_exercises || totalPrompts} exercises · C1 preparation</p>
+      <div class="welcome-stats">
+        <div class="welcome-stat">
+          <div class="val">${totalAnswered}</div>
+          <div class="lbl">prompts answered</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="val">${Math.round(totalAnswered/totalPrompts*100)}%</div>
+          <div class="lbl">complete</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="val" style="color:var(--coral)">${totalFlagged}</div>
+          <div class="lbl">flagged difficult</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="val">${totalMinutes}m</div>
+          <div class="lbl">total practice</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Session log (Layer 2)
+  if (SESSION_LOG.length > 0) {
+    html += `<div class="session-log"><h3>📋 Recent Sessions</h3>`;
+    const recent = SESSION_LOG.slice(-10).reverse();
+    recent.forEach(s => {
+      const date = new Date(s.date);
+      const dateStr = date.toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+      const timeStr = date.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' });
+      const mins = Math.floor(s.duration_seconds / 60);
+      const secs = s.duration_seconds % 60;
+      html += `
+        <div class="session-entry">
+          <span class="session-date">${dateStr} ${timeStr}</span>
+          <span class="session-chapter">Ch ${s.chapter}</span>
+          <span class="session-duration">${mins}m ${String(secs).padStart(2,'0')}s</span>
+          <span class="session-detail">${s.prompts_answered} answered · ${s.exercises_flagged} flagged</span>
+        </div>
+      `;
+    });
+    html += `</div>`;
+  }
+  
+  document.getElementById('main-content').innerHTML = html;
+}
+
+function goHome() {
+  saveProgress(true);
+  showWelcome();
+  renderNav();
+}
+
+/* ══════════════════════════════════════════
+   CHAPTER VIEW
+   ══════════════════════════════════════════ */
+
+function openChapter(num) {
+  // Log previous session if switching chapters
+  if (CURRENT_CHAPTER !== null && CURRENT_CHAPTER !== num && sessionStartTime) {
+    stopSessionTimer();
+    logSession(CURRENT_CHAPTER);
+  }
+  
+  CURRENT_CHAPTER = num;
+  startSessionTimer();
+  
+  const chapter = DATA.chapters.find(c => c.chapter === num);
+  document.getElementById('header-sub').textContent = `Kapitel ${num}: ${chapter.topic_de || chapter.topic}`;
+  document.getElementById('toolbar').classList.add('visible');
+  document.getElementById('stats-bar').classList.add('visible');
+  
+  let html = '';
+  
+  // Rule box
+  if (chapter.rule) {
+    html += `<div class="instruction" style="margin:16px 0">${chapter.rule}</div>`;
+  }
+  
+  chapter.exercises.forEach(ex => {
+    const key = `ch${num}_ex${ex.exercise_number}`;
+    const isFlagged = FLAGS[key] || false;
+    const hasAnswer = Object.keys(ANSWERS).some(k => k.startsWith(key) && ANSWERS[k]?.trim());
+    const typeClass = `type-${(ex.type || 'transform').replace(/\s+/g, '_')}`;
+    const flaggedClass = isFlagged ? 'flagged' : '';
+    const completedClass = hasAnswer ? 'completed' : '';
+    
+    html += `
+      <div class="exercise-card ${typeClass} ${flaggedClass} ${completedClass}" id="card-${key}">
+        <div class="exercise-header" onclick="toggleExercise('${key}')">
+          <div class="exercise-num">${ex.exercise_number}</div>
+          <div class="exercise-info">
+            <div class="exercise-title">${escapeHtml(ex.title)}</div>
+            <div class="exercise-type">${ex.type || 'exercise'}</div>
+          </div>
+          <button class="flag-btn ${isFlagged ? 'flagged' : ''}" 
+            onclick="event.stopPropagation(); toggleFlag('${key}')" 
+            title="Flag as difficult">
+            ${isFlagged ? '🚩' : '⚐'}
+          </button>
+          <svg class="arrow" id="arrow-${key}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M9 18l6-6-6-6"/>
+          </svg>
+        </div>
+        <div class="exercise-body" id="body-${key}">
+          <div class="exercise-content">
+            ${ex.instruction ? `<div class="instruction">${escapeHtml(ex.instruction)}</div>` : ''}
+            ${renderPrompts(ex, key)}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+  
+  document.getElementById('main-content').innerHTML = html;
+  updateStatsBar();
+  renderNav();
+}
+
+function renderPrompts(exercise, baseKey) {
+  // If no prompts, show textarea for free-form exercises
+  if (!exercise.prompts || exercise.prompts.length === 0) {
+    const savedVal = ANSWERS[baseKey] || '';
+    return `
+      <div class="prompt-item">
+        <textarea class="answer-input ${savedVal ? 'has-text' : ''}" 
+          placeholder="Write your answer here..."
+          oninput="onAnswer('${baseKey}', this.value); this.classList.toggle('has-text', this.value.trim().length > 0)"
+        >${savedVal}</textarea>
+      </div>
+    `;
+  }
+  
+  let html = '';
+  exercise.prompts.forEach(p => {
+    const pKey = `${baseKey}_p${p.number}`;
+    const savedVal = ANSWERS[pKey] || '';
+    html += `
+      <div class="prompt-item">
+        <div class="prompt-text"><strong>${p.number}.</strong> ${escapeHtml(p.text)}</div>
+        <input type="text" class="answer-input ${savedVal ? 'has-text' : ''}" 
+          placeholder="→ Your answer..."
+          value="${escapeHtml(savedVal)}"
+          oninput="onAnswer('${pKey}', this.value); this.classList.toggle('has-text', this.value.trim().length > 0)"
+        >
+      </div>
+    `;
+  });
+  return html;
+}
+
+/* ══════════════════════════════════════════
+   FLAG SYSTEM (LAYER 2 NEW)
+   ══════════════════════════════════════════ */
+
+function toggleFlag(key) {
+  FLAGS[key] = !FLAGS[key];
+  if (!FLAGS[key]) delete FLAGS[key];
+  
+  // Update card visual
+  const card = document.getElementById(`card-${key}`);
+  if (card) card.classList.toggle('flagged', FLAGS[key] || false);
+  
+  // Update flag button
+  const btn = card?.querySelector('.flag-btn');
+  if (btn) {
+    btn.classList.toggle('flagged', FLAGS[key] || false);
+    btn.innerHTML = FLAGS[key] ? '🚩' : '⚐';
+  }
+  
+  saveFlags();
+  updateStatsBar();
+  renderNav();
+}
+
+function saveFlags() {
+  try { localStorage.setItem('polyglot_grammar_flags', JSON.stringify(FLAGS)); } catch(e) {}
+}
+
+function getChapterFlagCount(chNum) {
+  const prefix = `ch${chNum}_`;
+  return Object.keys(FLAGS).filter(k => k.startsWith(prefix) && FLAGS[k]).length;
+}
+
+/* ══════════════════════════════════════════
+   ANSWERS + STATS
+   ══════════════════════════════════════════ */
+
+function onAnswer(key, value) {
+  ANSWERS[key] = value;
+  
+  // Update card completion state
+  const cardKey = key.includes('_p') ? key.split('_p')[0] : key;
+  const card = document.getElementById(`card-${cardKey}`);
+  if (card) {
+    const hasAny = Object.keys(ANSWERS).some(k => k.startsWith(cardKey) && ANSWERS[k]?.trim());
+    card.classList.toggle('completed', hasAny);
+  }
+  
+  updateStatsBar();
+}
+
+function updateStatsBar() {
+  if (!CURRENT_CHAPTER) return;
+  
+  const chapter = DATA.chapters.find(c => c.chapter === CURRENT_CHAPTER);
+  const prefix = `ch${CURRENT_CHAPTER}_`;
+  
+  const answered = Object.keys(ANSWERS).filter(k => k.startsWith(prefix) && ANSWERS[k]?.trim()).length;
+  const total = chapter.exercises.reduce((s, ex) => s + Math.max(ex.prompts.length, 1), 0);
+  const flagged = Object.keys(FLAGS).filter(k => k.startsWith(prefix) && FLAGS[k]).length;
+  const pct = total > 0 ? Math.round(answered / total * 100) : 0;
+  
+  document.getElementById('stat-answered').textContent = answered;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-flagged').textContent = flagged;
+  document.getElementById('progress-fill').style.width = pct + '%';
+}
+
+function hasChapterAnswers(chNum) {
+  const prefix = `ch${chNum}_`;
+  return Object.keys(ANSWERS).some(k => k.startsWith(prefix) && ANSWERS[k]?.trim());
+}
+
+/* ══════════════════════════════════════════
+   EXERCISE EXPAND/COLLAPSE
+   ══════════════════════════════════════════ */
+
+function toggleExercise(key) {
+  const body = document.getElementById(`body-${key}`);
+  const arrow = document.getElementById(`arrow-${key}`);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function expandAll() {
+  document.querySelectorAll('.exercise-body').forEach(b => b.classList.add('open'));
+  document.querySelectorAll('.arrow').forEach(a => a.classList.add('open'));
+}
+
+function collapseAll() {
+  document.querySelectorAll('.exercise-body').forEach(b => b.classList.remove('open'));
+  document.querySelectorAll('.arrow').forEach(a => a.classList.remove('open'));
+}
+
+/* ══════════════════════════════════════════
+   SAVE + EXPORT
+   ══════════════════════════════════════════ */
+
+function saveProgress(silent) {
+  try {
+    localStorage.setItem('polyglot_grammar_answers', JSON.stringify(ANSWERS));
+    localStorage.setItem('polyglot_grammar_flags', JSON.stringify(FLAGS));
+    localStorage.setItem('polyglot_session_log', JSON.stringify(SESSION_LOG));
+    if (!silent) showAutosaveIndicator();
+    else {
+      // Still show brief indicator for autosave
+      const el = document.getElementById('autosave-indicator');
+      el.textContent = '✓ Auto-saved';
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 800);
+    }
+  } catch(e) {
+    console.error('Save failed:', e);
+  }
+}
+
+function exportAnswers() {
+  const chaptersToExport = CURRENT_CHAPTER
+    ? DATA.chapters.filter(c => c.chapter === CURRENT_CHAPTER)
+    : DATA.chapters.filter(c => hasChapterAnswers(c.chapter));
+  
+  if (chaptersToExport.length === 0) {
+    alert('No answers to export. Start answering exercises first!');
+    return;
+  }
+  
+  // Calculate session duration
+  const sessionMins = Math.floor(sessionElapsedSeconds / 60);
+  const sessionSecs = sessionElapsedSeconds % 60;
+  
+  // Build export with gradient rubric (Layer 2 improved format)
+  let text = '';
+  text += `═══════════════════════════════════════════\n`;
+  text += `POLYGLOT OS — GRAMMAR TEST EXPORT\n`;
+  text += `Language: German\n`;
+  text += `Date: ${new Date().toISOString().slice(0,10)}\n`;
+  text += `Time: ${new Date().toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'})}\n`;
+  text += `Session Duration: ${sessionMins}m ${String(sessionSecs).padStart(2,'0')}s\n`;
+  text += `═══════════════════════════════════════════\n\n`;
+  
+  text += `GRADING INSTRUCTIONS FOR CLAUDE:\n`;
+  text += `─────────────────────────────────\n`;
+  text += `Grade each answer on a 0-3 scale:\n`;
+  text += `  0 = completely wrong\n`;
+  text += `  1 = right idea, major grammar errors\n`;
+  text += `  2 = mostly correct, minor errors\n`;
+  text += `  3 = perfect\n\n`;
+  text += `For each error, categorize it as:\n`;
+  text += `  case / gender / conjugation / word_order / register / vocabulary / spelling\n\n`;
+  text += `At the end, provide:\n`;
+  text += `  1. Overall accuracy percentage\n`;
+  text += `  2. Gradient score (e.g., B1.4) using the scale:\n`;
+  text += `     X.1-X.5 = within level, X.6 = promotion to next level\n`;
+  text += `     Example: A2.6 = B1.1\n`;
+  text += `  3. Weakness radar scores (0-5 each):\n`;
+  text += `     grammar / vocabulary / reading / listening / writing / speaking\n`;
+  text += `  4. Top 3 specific weaknesses to drill\n`;
+  text += `  5. Format results as a CORRECTION FILE (JSON) for app import\n\n`;
+  text += `FLAGGED EXERCISES (student marked as difficult):\n`;
+  
+  // List flagged exercises
+  let flaggedAny = false;
+  chaptersToExport.forEach(ch => {
+    ch.exercises.forEach(ex => {
+      const key = `ch${ch.chapter}_ex${ex.exercise_number}`;
+      if (FLAGS[key]) {
+        text += `  ⚑ Ch ${ch.chapter}, Ex ${ex.exercise_number}: ${ex.title}\n`;
+        flaggedAny = true;
+      }
+    });
+  });
+  if (!flaggedAny) text += `  (none)\n`;
+  
+  text += `\n`;
+  
+  // Export each chapter
+  chaptersToExport.forEach(ch => {
+    text += `\n${'═'.repeat(50)}\n`;
+    text += `CHAPTER ${ch.chapter}: ${ch.topic_de || ch.topic}\n`;
+    text += `${ch.topic}\n`;
+    text += `${'═'.repeat(50)}\n\n`;
+    
+    ch.exercises.forEach(ex => {
+      const key = `ch${ch.chapter}_ex${ex.exercise_number}`;
+      const isFlagged = FLAGS[key] ? ' ⚑ FLAGGED' : '';
+      
+      // Check if any answers exist for this exercise
+      const hasAny = Object.keys(ANSWERS).some(k => k.startsWith(key) && ANSWERS[k]?.trim());
+      if (!hasAny) return;
+      
+      text += `───────────────────────────────────────────\n`;
+      text += `EXERCISE ${ex.exercise_number}: ${ex.title}${isFlagged}\n`;
+      text += `Type: ${ex.type || 'exercise'}\n`;
+      if (ex.instruction) text += `Instruction: ${ex.instruction}\n`;
+      text += `───────────────────────────────────────────\n`;
+      
+      if (!ex.prompts || ex.prompts.length === 0) {
+        // Free-form answer
+        const answer = ANSWERS[key] || '';
+        if (answer.trim()) {
+          text += `Answer:\n${answer}\n`;
+        }
+      } else {
+        ex.prompts.forEach(p => {
+          const pKey = `${key}_p${p.number}`;
+          const answer = ANSWERS[pKey] || '';
+          if (answer.trim()) {
+            text += `\nPrompt ${p.number}: ${p.text}\n`;
+            text += `Answer: ${answer}\n`;
+          }
+        });
+      }
+      text += `\n`;
+    });
+  });
+  
+  text += `\n${'═'.repeat(50)}\n`;
+  text += `END OF EXPORT — AWAITING CORRECTION FILE\n`;
+  text += `${'═'.repeat(50)}\n`;
+  
+  // Show in modal
+  window._exportText = text;
+  document.getElementById('modal-title').textContent = 
+    `Export — ${chaptersToExport.length} chapter${chaptersToExport.length > 1 ? 's' : ''}`;
+  document.getElementById('modal-content').textContent = text;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function copyExport() {
+  navigator.clipboard.writeText(window._exportText).then(() => {
+    const btn = event.target;
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = '📋 Copy', 1500);
+  });
+}
+
+function downloadExport() {
+  const blob = new Blob([window._exportText], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().slice(0,10);
+  const chStr = CURRENT_CHAPTER ? `ch${CURRENT_CHAPTER}_` : '';
+  a.download = `grammar_export_${chStr}${dateStr}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+/* ══════════════════════════════════════════
+   UTILITIES
+   ══════════════════════════════════════════ */
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ══════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+   ══════════════════════════════════════════ */
+
+document.addEventListener('keydown', function(e) {
+  // Ctrl/Cmd + S → Save
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    saveProgress();
+  }
+  // Ctrl/Cmd + Enter → Export (Layer 2)
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    if (CURRENT_CHAPTER) exportAnswers();
+  }
+  // Escape → Close modal
+  if (e.key === 'Escape') {
+    closeModal();
+  }
+});
+
+// Close modal on overlay click
+document.getElementById('modal-overlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+/* ══════════════════════════════════════════
+   INIT
+   ══════════════════════════════════════════ */
+init();
+</script>
+</body>
+</html>
