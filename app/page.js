@@ -74,12 +74,12 @@ export default function Home() {
             }}>
               📝 Grammar Trainer
             </Link>
-            <span style={{
-              padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.15)',
-              color: 'white', fontWeight: 600, fontSize: 15, opacity: 0.6
+                  <Link href="/palace" style={{
+              padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.25)',
+              color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none'
             }}>
-              🏛 Palace (Layer 6)
-            </span>
+              🏛 Mental Palace
+            </Link>
             <span style={{
               padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.15)',
               color: 'white', fontWeight: 600, fontSize: 15, opacity: 0.6

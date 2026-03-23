@@ -36,16 +36,17 @@ export default function RootLayout({ children }) {
             }}>
               📝 Grammar
             </a>
-            <span style={{ color: '#ccc', fontSize: 14 }}>
+            <a href="/palace" style={{
+              textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600
+            }}>
               🏛 Palace
-            </span>
+            </a>
             <span style={{ color: '#ccc', fontSize: 14 }}>
               📓 Journal
             </span>
           </div>
         </nav>
 
-        {/* Page content */}
         {children}
       </body>
     </html>
