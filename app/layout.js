@@ -15,7 +15,6 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body style={{ margin: 0, fontFamily: "'Nunito', sans-serif", background: '#f8f9fa', minHeight: '100vh' }}>
-        {/* Navbar */}
         <nav style={{
           background: 'white',
           borderBottom: '1px solid #eee',
@@ -31,22 +30,23 @@ export default function RootLayout({ children }) {
             🌐 Polyglot OS
           </a>
           <div style={{ display: 'flex', gap: 20 }}>
-            <a href="/grammar" style={{
-              textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600
-            }}>
+            <a href="/grammar" style={{ textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600 }}>
               📝 Grammar
             </a>
-            <a href="/palace" style={{
-              textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600
-            }}>
+            <a href="/palace" style={{ textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600 }}>
               🏛 Palace
             </a>
-            <span style={{ color: '#ccc', fontSize: 14 }}>
+            <a href="/journal" style={{ textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600 }}>
               📓 Journal
-            </span>
+            </a>
+            <a href="/assessment/de" style={{ textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600 }}>
+              📋 Test
+            </a>
+            <a href="/progress/de" style={{ textDecoration: 'none', color: '#555', fontSize: 14, fontWeight: 600 }}>
+              📈 Progress
+            </a>
           </div>
         </nav>
-
         {children}
       </body>
     </html>

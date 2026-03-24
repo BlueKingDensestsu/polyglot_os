@@ -5,20 +5,26 @@ import Link from 'next/link';
 
 /**
  * / — Polyglot OS Dashboard
- * 
- * Layer 5: Shows active language card with link to grammar module.
- * Future layers will add: palace, journal, assessments, streak, heatmap.
+ * Layer 8: Added assessment button + 50-hour gate progress + gradient level display
  */
 
 export default function Home() {
   const [languages, setLanguages] = useState([]);
+  const [streak, setStreak] = useState(null);
+  const [gate, setGate] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/languages')
-      .then(res => res.json())
-      .then(data => { setLanguages(data); setLoading(false); })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch('/api/languages').then(r => r.json()),
+      fetch('/api/journal?lang=de&view=streak').then(r => r.json()).catch(() => null),
+      fetch('/api/assessment?lang=de').then(r => r.json()).catch(() => null),
+    ]).then(([langs, streakData, gateData]) => {
+      setLanguages(langs);
+      setStreak(streakData);
+      setGate(gateData);
+      setLoading(false);
+    });
   }, []);
 
   if (loading) return (
@@ -46,7 +52,7 @@ export default function Home() {
       {active && (
         <div style={{
           background: 'linear-gradient(135deg, #2E86AB 0%, #2EC4B6 100%)',
-          borderRadius: 20, padding: 32, color: 'white', marginBottom: 32
+          borderRadius: 20, padding: 32, color: 'white', marginBottom: 24
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <div>
@@ -56,44 +62,103 @@ export default function Home() {
               <h2 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px' }}>
                 {active.flag} {active.name}
               </h2>
-              <div style={{ display: 'flex', gap: 20, fontSize: 14 }}>
+              <div style={{ display: 'flex', gap: 20, fontSize: 14, flexWrap: 'wrap' }}>
                 <span>Level: <strong>{active.assessed_level}</strong></span>
                 <span>Target: <strong>{active.target_level}</strong></span>
                 <span>Hours: <strong>{Number(active.total_minutes / 60).toFixed(1)}h</strong></span>
                 <span>Chapters: <strong>{active.chapter_count}</strong></span>
                 <span>Prompts: <strong>{active.total_prompts?.toLocaleString()}</strong></span>
+                {streak && streak.current_streak > 0 && (
+                  <span>🔥 Streak: <strong>{streak.current_streak} days</strong></span>
+                )}
               </div>
             </div>
             <span style={{ fontSize: 64, opacity: 0.3 }}>{active.flag}</span>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+          {/* Module buttons */}
+          <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
             <Link href="/grammar" style={{
               padding: '12px 28px', borderRadius: 12, background: 'white', color: '#2E86AB',
-              fontWeight: 700, fontSize: 15, textDecoration: 'none', transition: 'transform 0.2s'
+              fontWeight: 700, fontSize: 15, textDecoration: 'none'
             }}>
-              📝 Grammar Trainer
+              📝 Grammar
             </Link>
-                  <Link href="/palace" style={{
+            <Link href="/palace" style={{
               padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.25)',
               color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none'
             }}>
-              🏛 Mental Palace
+              🏛 Palace
             </Link>
-            <span style={{
-              padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.15)',
-              color: 'white', fontWeight: 600, fontSize: 15, opacity: 0.6
+            <Link href="/journal" style={{
+              padding: '12px 28px', borderRadius: 12, background: 'rgba(255,255,255,0.25)',
+              color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none'
             }}>
-              📓 Journal (Layer 7)
-            </span>
+              📓 Journal
+            </Link>
+            <Link href={`/assessment/${active.code}`} style={{
+              padding: '12px 28px', borderRadius: 12,
+              background: gate?.gate?.test_unlocked ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.15)',
+              color: 'white', fontWeight: 700, fontSize: 15, textDecoration: 'none',
+              opacity: gate?.gate?.test_unlocked ? 1 : 0.7,
+            }}>
+              📋 {gate?.gate?.has_initial ? 'Level-Up Test' : 'Take Assessment'}
+              {gate?.gate && !gate.gate.test_unlocked && gate.gate.has_initial && (
+                <span style={{ fontSize: 11, marginLeft: 6, opacity: 0.8 }}>
+                  ({gate.gate.hours_until_unlock}h)
+                </span>
+              )}
+            </Link>
           </div>
         </div>
       )}
 
-      {/* Upcoming Languages */}
-      <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e', margin: '0 0 16px' }}>
-        Sprint Queue
-      </h3>
+      {/* 50-hour gate progress */}
+      {gate?.gate?.has_initial && !gate.gate.test_unlocked && (
+        <div style={{
+          background: 'white', borderRadius: 14, padding: '16px 20px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: 16
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 600, color: '#333' }}>
+              🔒 Next level-up test unlocks in {gate.gate.hours_until_unlock}h
+            </span>
+            <span style={{ fontSize: 13, color: '#888' }}>
+              {gate.gate.hours_since_last_test}h / {gate.gate.gate_hours}h
+            </span>
+          </div>
+          <div style={{ height: 8, background: '#f0f0f0', borderRadius: 4 }}>
+            <div style={{
+              height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #F59E0B, #2EC4B6)',
+              width: `${Math.min(100, (gate.gate.hours_since_last_test / gate.gate.gate_hours) * 100)}%`,
+              transition: 'width 0.5s'
+            }} />
+          </div>
+        </div>
+      )}
+
+      {/* Quick Stats */}
+      {streak && (
+        <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
+          {[
+            { label: '🔥 Streak', value: `${streak.current_streak}d` },
+            { label: '⏱ Total', value: `${streak.total_hours}h` },
+            { label: '📅 Active Days', value: streak.active_days },
+            { label: '📝 Entries', value: streak.total_entries },
+          ].map((s, i) => (
+            <div key={i} style={{
+              flex: 1, background: 'white', borderRadius: 12, padding: '14px 16px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)', textAlign: 'center'
+            }}>
+              <p style={{ fontSize: 22, fontWeight: 800, color: '#1a1a2e', margin: '0 0 2px' }}>{s.value}</p>
+              <p style={{ fontSize: 12, color: '#888', margin: 0 }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Sprint Queue */}
+      <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1a1a2e', margin: '0 0 16px' }}>Sprint Queue</h3>
       <div style={{
         display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12
       }}>
@@ -111,9 +176,7 @@ export default function Home() {
                 #{lang.sprint_order}
               </span>
             </div>
-            <h4 style={{ fontSize: 15, fontWeight: 700, color: '#333', margin: '0 0 4px' }}>
-              {lang.name}
-            </h4>
+            <h4 style={{ fontSize: 15, fontWeight: 700, color: '#333', margin: '0 0 4px' }}>{lang.name}</h4>
             <p style={{ fontSize: 12, color: '#aaa', margin: 0 }}>
               {lang.assessed_level} · {lang.chapter_count > 0 ? `${lang.chapter_count} chapters` : 'No exercises yet'}
             </p>
@@ -121,7 +184,7 @@ export default function Home() {
         ))}
       </div>
 
-      {/* Footer stats */}
+      {/* Footer */}
       <div style={{
         marginTop: 40, padding: '20px 0', borderTop: '1px solid #eee',
         display: 'flex', justifyContent: 'center', gap: 32, fontSize: 13, color: '#aaa'
